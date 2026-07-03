@@ -165,6 +165,78 @@ fn pay_unknown_split_fails() {
 }
 
 #[test]
+fn deposit_credits_split_balance() {
+    let s = setup();
+    let creator = Address::generate(&s.env);
+    let a = Address::generate(&s.env);
+    let payer = Address::generate(&s.env);
+    let (token_id, token_client) = fund_token(&s.env, &payer, 1_000);
+
+    let id = s
+        .client
+        .create_split(&creator, &vec![&s.env, a], &vec![&s.env, 10_000], &None);
+
+    s.client.deposit(&payer, &id, &token_id, &400);
+
+    assert_eq!(s.client.balance(&id, &token_id), 400);
+    assert_eq!(token_client.balance(&s.client.address), 400);
+    assert_eq!(token_client.balance(&payer), 600);
+}
+
+#[test]
+fn distribute_pays_recipients_and_clears_balance() {
+    let s = setup();
+    let creator = Address::generate(&s.env);
+    let a = Address::generate(&s.env);
+    let b = Address::generate(&s.env);
+    let payer = Address::generate(&s.env);
+    let (token_id, token_client) = fund_token(&s.env, &payer, 1_000);
+
+    let id = s.client.create_split(
+        &creator,
+        &vec![&s.env, a.clone(), b.clone()],
+        &vec![&s.env, 7_500, 2_500],
+        &None,
+    );
+
+    s.client.deposit(&payer, &id, &token_id, &600);
+    s.client.deposit(&payer, &id, &token_id, &400);
+    let distributed = s.client.distribute(&id, &token_id);
+
+    assert_eq!(distributed, 1_000);
+    assert_eq!(token_client.balance(&a), 750);
+    assert_eq!(token_client.balance(&b), 250);
+    assert_eq!(token_client.balance(&s.client.address), 0);
+    assert_eq!(s.client.balance(&id, &token_id), 0);
+}
+
+#[test]
+fn distribute_with_empty_balance_fails() {
+    let s = setup();
+    let creator = Address::generate(&s.env);
+    let a = Address::generate(&s.env);
+    let payer = Address::generate(&s.env);
+    let (token_id, _) = fund_token(&s.env, &payer, 1_000);
+
+    let id = s
+        .client
+        .create_split(&creator, &vec![&s.env, a], &vec![&s.env, 10_000], &None);
+
+    let result = s.client.try_distribute(&id, &token_id);
+    assert_eq!(result, Err(Ok(Error::NothingToDistribute)));
+}
+
+#[test]
+fn deposit_to_unknown_split_fails() {
+    let s = setup();
+    let payer = Address::generate(&s.env);
+    let (token_id, _) = fund_token(&s.env, &payer, 1_000);
+
+    let result = s.client.try_deposit(&payer, &42, &token_id, &100);
+    assert_eq!(result, Err(Ok(Error::SplitNotFound)));
+}
+
+#[test]
 fn controller_can_update_mutable_split() {
     let s = setup();
     let creator = Address::generate(&s.env);
