@@ -34,6 +34,37 @@ export default function EscrowCard({
     loadPending(splitId);
   }, [splitId]);
 
+  async function distribute() {
+    if (!wallet) {
+      setMessage("Connect your wallet first.");
+      return;
+    }
+    if (splitId === "") {
+      setMessage("Pick a split.");
+      return;
+    }
+    setBusy(true);
+    setMessage(null);
+    try {
+      const client = walletClient(wallet);
+      const tx = await client.distribute({
+        id: BigInt(splitId),
+        token: XLM_SAC,
+      });
+      const { result } = await tx.signAndSend();
+      setMessage(
+        result.isOk()
+          ? `Distributed ${(Number(result.unwrap()) / 10_000_000).toLocaleString()} XLM to all recipients.`
+          : "Nothing to distribute.",
+      );
+      await loadPending(splitId);
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function deposit() {
     if (!wallet) {
       setMessage("Connect your wallet first.");
@@ -98,6 +129,13 @@ export default function EscrowCard({
       <div className="row">
         <button disabled={busy} onClick={deposit}>
           {busy ? "Working…" : "Deposit"}
+        </button>
+        <button
+          className="ghost"
+          disabled={busy || !pending}
+          onClick={distribute}
+        >
+          Distribute
         </button>
       </div>
       {message && <p className="note">{message}</p>}
