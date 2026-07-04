@@ -9,7 +9,7 @@ jobs:
   contract:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: Swatinem/rust-cache@v2
       - run: rustup update stable && rustup target add wasm32v1-none
       - run: cargo fmt --all --check
