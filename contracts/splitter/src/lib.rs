@@ -278,6 +278,10 @@ impl Splitter {
     /// Moves funds into the contract and credits them to the split without
     /// paying anyone yet. Useful when money arrives before a distribution
     /// should happen.
+    ///
+    /// Credits the amount the vault's balance actually increased by rather
+    /// than the requested `amount`, so fee-on-transfer tokens that deliver
+    /// less than requested cannot over-credit the split.
     pub fn deposit(
         env: Env,
         from: Address,
@@ -291,8 +295,13 @@ impl Splitter {
         }
         load(&env, id)?;
         let vault = env.current_contract_address();
-        token::Client::new(&env, &token).transfer(&from, &vault, &amount);
-        credit(&env, id, &token, amount);
+        let client = token::Client::new(&env, &token);
+        let before = client.balance(&vault);
+        client.transfer(&from, &vault, &amount);
+        let received = client.balance(&vault) - before;
+        if received > 0 {
+            credit(&env, id, &token, received);
+        }
         Ok(())
     }
 
