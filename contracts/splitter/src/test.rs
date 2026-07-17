@@ -772,6 +772,149 @@ fn immutable_split_cannot_be_updated() {
     assert_eq!(result, Err(Ok(Error::SplitImmutable)));
 }
 
+#[test]
+fn every_error_code_maps_to_its_triggering_call() {
+    let s = setup();
+    let creator = Address::generate(&s.env);
+    let controller = Address::generate(&s.env);
+    let a = Address::generate(&s.env);
+    let b = Address::generate(&s.env);
+    let payer = Address::generate(&s.env);
+    let (token_id, _) = fund_token(&s.env, &payer, 1_000);
+
+    assert_eq!(
+        s.client
+            .try_create_split(&creator, &vec![&s.env], &vec![&s.env], &None),
+        Err(Ok(Error::NoRecipients))
+    );
+    assert_eq!(
+        s.client
+            .try_pay_many(&payer, &vec![&s.env], &vec![&s.env], &token_id),
+        Err(Ok(Error::NoRecipients))
+    );
+
+    assert_eq!(
+        s.client.try_create_split(
+            &creator,
+            &vec![&s.env, acct(&a), acct(&b)],
+            &vec![&s.env, 10_000],
+            &None,
+        ),
+        Err(Ok(Error::LengthMismatch))
+    );
+    let id = s.client.create_split(
+        &creator,
+        &vec![&s.env, acct(&a)],
+        &vec![&s.env, 10_000],
+        &None,
+    );
+    assert_eq!(
+        s.client.try_pay_many(
+            &payer,
+            &vec![&s.env, id],
+            &vec![&s.env, 100, 200],
+            &token_id,
+        ),
+        Err(Ok(Error::LengthMismatch))
+    );
+
+    assert_eq!(
+        s.client.try_create_split(
+            &creator,
+            &vec![&s.env, acct(&a), acct(&b)],
+            &vec![&s.env, 10_000, 0],
+            &None,
+        ),
+        Err(Ok(Error::ZeroShare))
+    );
+
+    assert_eq!(
+        s.client.try_create_split(
+            &creator,
+            &vec![&s.env, acct(&a), acct(&b)],
+            &vec![&s.env, 5_000, 4_000],
+            &None,
+        ),
+        Err(Ok(Error::BadShareTotal))
+    );
+
+    assert_eq!(
+        s.client.try_pay(&payer, &99, &token_id, &100),
+        Err(Ok(Error::SplitNotFound))
+    );
+
+    let locked = s.client.create_split(
+        &creator,
+        &vec![&s.env, acct(&a)],
+        &vec![&s.env, 10_000],
+        &None,
+    );
+    assert_eq!(
+        s.client
+            .try_update_split(&locked, &vec![&s.env, acct(&a)], &vec![&s.env, 10_000]),
+        Err(Ok(Error::SplitImmutable))
+    );
+    assert_eq!(
+        s.client
+            .try_transfer_control(&locked, &Some(controller.clone())),
+        Err(Ok(Error::SplitImmutable))
+    );
+
+    assert_eq!(
+        s.client.try_pay(&payer, &id, &token_id, &0),
+        Err(Ok(Error::InvalidAmount))
+    );
+    assert_eq!(
+        s.client.try_deposit(&payer, &id, &token_id, &0),
+        Err(Ok(Error::InvalidAmount))
+    );
+    assert_eq!(
+        s.client.try_preview_payout(&id, &0),
+        Err(Ok(Error::InvalidAmount))
+    );
+
+    assert_eq!(
+        s.client.try_distribute(&id, &token_id),
+        Err(Ok(Error::NothingToDistribute))
+    );
+
+    let mut recipients = vec![&s.env, acct(&a)];
+    let mut shares = vec![&s.env, 300u32];
+    for _ in 0..32 {
+        recipients.push_back(acct(&Address::generate(&s.env)));
+        shares.push_back(300u32);
+    }
+    assert_eq!(
+        s.client
+            .try_create_split(&creator, &recipients, &shares, &None),
+        Err(Ok(Error::TooManyRecipients))
+    );
+
+    assert_eq!(
+        s.client.try_create_split(
+            &creator,
+            &vec![&s.env, acct(&a), Recipient::Split(7)],
+            &vec![&s.env, 5_000, 5_000],
+            &None,
+        ),
+        Err(Ok(Error::BadChildSplit))
+    );
+    let mutable = s.client.create_split(
+        &creator,
+        &vec![&s.env, acct(&a)],
+        &vec![&s.env, 10_000],
+        &Some(controller.clone()),
+    );
+    assert_eq!(
+        s.client.try_update_split(
+            &mutable,
+            &vec![&s.env, acct(&a), Recipient::Split(mutable)],
+            &vec![&s.env, 5_000, 5_000],
+        ),
+        Err(Ok(Error::BadChildSplit))
+    );
+}
+
 
 // Turns arbitrary positive weights into basis-point shares that sum to
 // exactly TOTAL_SHARES, using the same floor-with-remainder-to-last approach
