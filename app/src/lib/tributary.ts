@@ -189,8 +189,20 @@ export function shortAddress(addr: string): string {
   return `${addr.slice(0, 4)}…${addr.slice(-4)}`;
 }
 
+export class ConversionError extends RangeError {
+  constructor(message: string) {
+    super(message);
+    this.name = "ConversionError";
+  }
+}
+
 // Stellar classic assets always use 7 decimals through their SAC.
 export function toStroops(units: string): bigint {
+  if (typeof units !== "string" || !/^\d+\.?\d*$|^\.\d+$/.test(units)) {
+    throw new ConversionError(
+      `Invalid amount: "${units}". Use a plain decimal number with no sign or exponent.`,
+    );
+  }
   const [whole, frac = ""] = units.split(".");
   const padded = (frac + "0000000").slice(0, 7);
   return BigInt(whole || "0") * 10_000_000n + BigInt(padded);
