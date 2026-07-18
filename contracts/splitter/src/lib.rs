@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(clippy::missing_errors_doc, clippy::needless_pass_by_value)]
 //! Splits incoming payments between recipients by fixed basis-point shares.
 //!
 //! A split routes to accounts or to other splits. Payments either go straight
@@ -39,7 +40,7 @@ pub enum Error {
     /// Code 3. A share value is `0`.
     /// Raised by `create_split` and `update_split` (via `validate`).
     ZeroShare = 3,
-    /// Code 4. Shares do not sum to `TOTAL_SHARES` (10_000), or the sum
+    /// Code 4. Shares do not sum to `TOTAL_SHARES` (`10_000`), or the sum
     /// overflows `u32`.
     /// Raised by `create_split` and `update_split` (via `validate`).
     BadShareTotal = 4,
@@ -65,7 +66,7 @@ pub enum Error {
     /// Raised by `create_split` and `update_split` (via `validate`).
     BadChildSplit = 10,
     /// An arithmetic path produced a value that does not fit the i128 the
-    /// contract stores. Can only happen if a share exceeds TOTAL_SHARES, which
+    /// contract stores. Can only happen if a share exceeds `TOTAL_SHARES`, which
     /// `validate` forbids, but we surface it as a typed error rather than panic.
     ArithmeticOverflow = 11,
     SplitHasBalance = 12,
@@ -170,7 +171,7 @@ pub struct Splitter;
 #[contractimpl]
 impl Splitter {
     /// Registers a new split and returns its id. Shares are basis points
-    /// and must sum to exactly 10_000. Passing a controller makes the
+    /// and must sum to exactly `10_000`. Passing a controller makes the
     /// split mutable by that address; passing None locks it forever.
     pub fn create_split(
         env: Env,
@@ -507,6 +508,7 @@ impl Splitter {
         amounts(&env, &split, amount)
     }
 
+    #[must_use]
     pub fn balance(env: Env, id: u64, token: Address) -> i128 {
         env.storage()
             .persistent()
@@ -518,6 +520,7 @@ impl Splitter {
         load(&env, id)
     }
 
+    #[must_use]
     pub fn held_tokens(env: Env, id: u64) -> Vec<Address> {
         env.storage()
             .persistent()
@@ -525,6 +528,7 @@ impl Splitter {
             .unwrap_or_else(|| Vec::new(&env))
     }
 
+    #[must_use]
     pub fn splits_of(env: Env, creator: Address) -> Vec<u64> {
         env.storage()
             .persistent()
@@ -532,6 +536,7 @@ impl Splitter {
             .unwrap_or_else(|| Vec::new(&env))
     }
 
+    #[must_use]
     pub fn splits_of_paged(env: Env, creator: Address, start: u32, limit: u32) -> Vec<u64> {
         let all: Vec<u64> = env
             .storage()
@@ -553,6 +558,7 @@ impl Splitter {
         page
     }
 
+    #[must_use]
     pub fn splits_of_count(env: Env, creator: Address) -> u32 {
         let all: Vec<u64> = env
             .storage()
@@ -562,10 +568,12 @@ impl Splitter {
         all.len()
     }
 
+    #[must_use]
     pub fn split_count(env: Env) -> u64 {
         env.storage().instance().get(&DataKey::Count).unwrap_or(0)
     }
 
+    #[must_use]
     pub fn pending_controller(env: Env, id: u64) -> Option<Address> {
         env.storage()
             .persistent()
@@ -613,7 +621,7 @@ fn amounts(env: &Env, split: &Split, amount: i128) -> Result<Vec<i128>, Error> {
     let mut out = Vec::new(env);
     let last = split.recipients.len() - 1;
     let mut assigned: i128 = 0;
-    let total = I256::from_i128(env, TOTAL_SHARES as i128);
+    let total = I256::from_i128(env, i128::from(TOTAL_SHARES));
     for i in 0..split.recipients.len() {
         let part = if i == last {
             amount - assigned
@@ -622,8 +630,10 @@ fn amounts(env: &Env, split: &Split, amount: i128) -> Result<Vec<i128>, Error> {
             // (custom high-supply tokens) before the division brings it back
             // into range. Compute the intermediate in 256-bit space so any
             // valid i128 amount stays panic- and wrap-free.
-            let product = I256::from_i128(env, amount)
-                .mul(&I256::from_i128(env, split.shares.get_unchecked(i) as i128));
+            let product = I256::from_i128(env, amount).mul(&I256::from_i128(
+                env,
+                i128::from(split.shares.get_unchecked(i)),
+            ));
             let part_i256 = product.div(&total);
             part_i256.to_i128().ok_or(Error::ArithmeticOverflow)?
         };

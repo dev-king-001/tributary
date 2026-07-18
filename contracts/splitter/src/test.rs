@@ -1,3 +1,10 @@
+#![cfg(test)]
+#![allow(
+    clippy::cast_lossless,
+    clippy::cast_possible_truncation,
+    clippy::too_many_lines,
+    clippy::used_underscore_binding
+)]
 extern crate alloc;
 
 use super::*;
