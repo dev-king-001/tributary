@@ -53,6 +53,7 @@ const translations = {
     placeholderAddress: "G… recipient address",
     placeholderSplit: "Split id",
     addRecipient: "Add recipient",
+    importCsv: "Import CSV",
     pctOfTotal: "{pct}% of 100%",
     // PaySplit
     payTitle: "Pay through a split",
@@ -163,6 +164,7 @@ const translations = {
     placeholderAddress: "Địa chỉ người nhận bắt đầu bằng G…",
     placeholderSplit: "Mã danh sách chia",
     addRecipient: "Thêm người nhận",
+    importCsv: "Nhập CSV",
     pctOfTotal: "{pct}% của 100%",
     // PaySplit
     payTitle: "Thanh toán qua danh sách chia",
