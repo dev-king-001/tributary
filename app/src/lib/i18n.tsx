@@ -55,6 +55,10 @@ const translations = {
     addRecipient: "Add recipient",
     importCsv: "Import CSV",
     pctOfTotal: "{pct}% of 100%",
+    useBasisPoints: "Use basis points",
+    bpsOfTotal: "{bps} of 10,000 bps",
+    unitBpsTitle: "Basis points (100 bps = 1%)",
+    unitPctTitle: "Percentage of the total payment. Stored on-chain as basis points.",
     // PaySplit
     payTitle: "Pay through a split",
     chooseSplit: "Choose split",
@@ -166,6 +170,10 @@ const translations = {
     addRecipient: "Thêm người nhận",
     importCsv: "Nhập CSV",
     pctOfTotal: "{pct}% của 100%",
+    useBasisPoints: "Sử dụng điểm cơ bản (bps)",
+    bpsOfTotal: "{bps} của 10.000 bps",
+    unitBpsTitle: "Điểm cơ bản (100 bps = 1%)",
+    unitPctTitle: "Phần trăm của tổng thanh toán. Lưu trên chuỗi dưới dạng điểm cơ bản.",
     // PaySplit
     payTitle: "Thanh toán qua danh sách chia",
     chooseSplit: "Chọn danh sách chia",
