@@ -73,7 +73,7 @@ fn benchmark_costs() {
 
         let mut ids = Vec::new(&env);
         let mut amounts = Vec::new(&env);
-        for _ in 0..10 {
+        for _ in 0..5 {
             ids.push_back(build_32_recipient_split(&env, &client, &payer));
             amounts.push_back(1_000_000);
         }
@@ -84,7 +84,7 @@ fn benchmark_costs() {
         let cpu = env.cost_estimate().budget().cpu_instruction_cost();
         let mem = env.cost_estimate().budget().memory_bytes_cost();
         results.push_str(&alloc::format!(
-            "  \"pay_many_32x10\": {{ \"cpu\": {}, \"mem\": {} }},\n",
+            "  \"pay_many_32x5\": {{ \"cpu\": {}, \"mem\": {} }},\n",
             cpu,
             mem
         ));
