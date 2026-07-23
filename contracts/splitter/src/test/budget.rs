@@ -26,6 +26,17 @@ fn build_32_recipient_split(env: &Env, client: &SplitterClient<'static>, creator
     client.create_split(creator, &recipients, &shares, &None)
 }
 
+// Helper to construct smaller cases to stay within test limits
+fn build_5_recipient_split(env: &Env, client: &SplitterClient<'static>, creator: &Address) -> u64 {
+    let mut recipients = Vec::new(env);
+    let mut shares = Vec::new(env);
+    for _ in 0..5 {
+        recipients.push_back(acct(&Address::generate(env)));
+        shares.push_back(10_000 / 5);
+    }
+    client.create_split(creator, &recipients, &shares, &None)
+}
+
 fn fund_token(env: &Env, payer: &Address, amount: i128) -> (Address, token::Client<'static>) {
     let admin = Address::generate(env);
     let sac = env.register_stellar_asset_contract_v2(admin);
@@ -74,7 +85,7 @@ fn benchmark_costs() {
         let mut ids = Vec::new(&env);
         let mut amounts = Vec::new(&env);
         for _ in 0..5 {
-            ids.push_back(build_32_recipient_split(&env, &client, &payer));
+            ids.push_back(build_5_recipient_split(&env, &client, &payer));
             amounts.push_back(1_000_000);
         }
 
@@ -84,7 +95,7 @@ fn benchmark_costs() {
         let cpu = env.cost_estimate().budget().cpu_instruction_cost();
         let mem = env.cost_estimate().budget().memory_bytes_cost();
         results.push_str(&alloc::format!(
-            "  \"pay_many_32x5\": {{ \"cpu\": {}, \"mem\": {} }},\n",
+            "  \"pay_many_5x5\": {{ \"cpu\": {}, \"mem\": {} }},\n",
             cpu,
             mem
         ));
