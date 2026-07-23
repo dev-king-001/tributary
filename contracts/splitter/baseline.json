@@ -1,0 +1,6 @@
+{
+  "pay_32": { "cpu": 0, "mem": 0 },
+  "pay_many_32x10": { "cpu": 0, "mem": 0 },
+  "distribute_32": { "cpu": 0, "mem": 0 },
+  "distribute_cascade_depth_5": { "cpu": 0, "mem": 0 }
+}

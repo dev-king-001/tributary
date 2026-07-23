@@ -695,6 +695,7 @@ fn amounts(env: &Env, split: &Split, amount: i128) -> Result<Vec<i128>, Error> {
     let last = split.recipients.len() - 1;
     let mut assigned: i128 = 0;
     let total = I256::from_i128(env, i128::from(TOTAL_SHARES));
+    let amount_256 = I256::from_i128(env, amount);
     for i in 0..split.recipients.len() {
         let part = if i == last {
             amount - assigned
@@ -703,7 +704,7 @@ fn amounts(env: &Env, split: &Split, amount: i128) -> Result<Vec<i128>, Error> {
             // (custom high-supply tokens) before the division brings it back
             // into range. Compute the intermediate in 256-bit space so any
             // valid i128 amount stays panic- and wrap-free.
-            let product = I256::from_i128(env, amount).mul(&I256::from_i128(
+            let product = amount_256.mul(&I256::from_i128(
                 env,
                 i128::from(split.shares.get_unchecked(i)),
             ));
@@ -719,12 +720,32 @@ fn amounts(env: &Env, split: &Split, amount: i128) -> Result<Vec<i128>, Error> {
 fn payout(env: &Env, split: &Split, from: &Address, token: &Address, amount: i128) {
     let client = token::Client::new(env, token);
     let vault = env.current_contract_address();
-    let parts = amounts(env, split, amount).unwrap_or_else(|_| Vec::new(env));
+    
+    let last = split.recipients.len() - 1;
+    let mut assigned: i128 = 0;
+    let total = I256::from_i128(env, i128::from(TOTAL_SHARES));
+    let amount_256 = I256::from_i128(env, amount);
+
     for i in 0..split.recipients.len() {
-        let part = parts.get_unchecked(i);
+        let part = if i == last {
+            amount - assigned
+        } else {
+            let product = amount_256.mul(&I256::from_i128(
+                env,
+                i128::from(split.shares.get_unchecked(i)),
+            ));
+            let part_i256 = product.div(&total);
+            match part_i256.to_i128() {
+                Some(p) => p,
+                None => return,
+            }
+        };
+        assigned += part;
+
         if part <= 0 {
             continue;
         }
+
         match split.recipients.get_unchecked(i) {
             Recipient::Account(addr) => client.transfer(from, &addr, &part),
             Recipient::Split(child) => {
@@ -835,13 +856,9 @@ fn distribute_recursive(
     .publish(env);
 
     if current_depth < max_depth {
-        let parts = amounts(env, &split, amount).unwrap_or_else(|_| Vec::new(env));
         for i in 0..split.recipients.len() {
-            let part = parts.get_unchecked(i);
-            if part > 0 {
-                if let Recipient::Split(child_id) = split.recipients.get_unchecked(i) {
-                    distribute_recursive(env, child_id, token, current_depth + 1, max_depth)?;
-                }
+            if let Recipient::Split(child_id) = split.recipients.get_unchecked(i) {
+                distribute_recursive(env, child_id, token, current_depth + 1, max_depth)?;
             }
         }
     }
