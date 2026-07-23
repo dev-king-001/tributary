@@ -134,18 +134,18 @@ fn benchmark_costs() {
         let payer = Address::generate(&env);
         let (token_id, _) = fund_token(&env, &payer, 1_000_000_000);
 
-        let mut last_split = build_32_recipient_split(&env, &client, &payer);
+        let mut last_split = build_5_recipient_split(&env, &client, &payer);
         for _ in 1..5 {
             let mut recipients = Vec::new(&env);
             let mut shares = Vec::new(&env);
             recipients.push_back(Recipient::Split(last_split));
-            shares.push_back(10_000 / 32);
-            for _ in 1..32 {
+            shares.push_back(10_000 / 5);
+            for _ in 1..5 {
                 recipients.push_back(acct(&Address::generate(&env)));
-                shares.push_back(10_000 / 32);
+                shares.push_back(10_000 / 5);
             }
-            let last_share = 10_000 - (10_000 / 32 * 31);
-            shares.set(31, last_share);
+            let last_share = 10_000 - (10_000 / 5 * 4);
+            shares.set(4, last_share);
             last_split = client.create_split(&payer, &recipients, &shares, &None);
         }
 
