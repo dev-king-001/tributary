@@ -60,8 +60,8 @@ pub fn split_part(amount: i128, share: u32) -> Option<i128> {
     if amount < 0 || share > TOTAL_SHARES {
         return None;
     }
-    let total = TOTAL_SHARES as i128;
-    let share = share as i128;
+    let total = i128::from(TOTAL_SHARES);
+    let share = i128::from(share);
     let whole = amount / total;
     let rem = amount % total;
     // Both `checked_` calls are provably total on this domain (see the Kani

@@ -696,24 +696,12 @@ fn amounts(env: &Env, split: &Split, amount: i128) -> Result<Vec<i128>, Error> {
     let mut out = Vec::new(env);
     let last = split.recipients.len() - 1;
     let mut assigned: i128 = 0;
-    let total = I256::from_i128(env, i128::from(TOTAL_SHARES));
-    let amount_256 = I256::from_i128(env, amount);
     for i in 0..split.recipients.len() {
         let part = if i == last {
             // Dust: whatever rounding left over goes to the last recipient,
             // so the parts sum to `amount` exactly.
             amount - assigned
         } else {
-            // `amount * share` can overflow i128 for large token amounts
-            // (custom high-supply tokens) before the division brings it back
-            // into range. Compute the intermediate in 256-bit space so any
-            // valid i128 amount stays panic- and wrap-free.
-            let product = amount_256.mul(&I256::from_i128(
-                env,
-                i128::from(split.shares.get_unchecked(i)),
-            ));
-            let part_i256 = product.div(&total);
-            part_i256.to_i128().ok_or(Error::ArithmeticOverflow)?
             math::split_part(amount, split.shares.get_unchecked(i))
                 .ok_or(Error::ArithmeticOverflow)?
         };
@@ -726,22 +714,15 @@ fn amounts(env: &Env, split: &Split, amount: i128) -> Result<Vec<i128>, Error> {
 fn payout(env: &Env, split: &Split, from: &Address, token: &Address, amount: i128) {
     let client = token::Client::new(env, token);
     let vault = env.current_contract_address();
-    
+
     let last = split.recipients.len() - 1;
     let mut assigned: i128 = 0;
-    let total = I256::from_i128(env, i128::from(TOTAL_SHARES));
-    let amount_256 = I256::from_i128(env, amount);
 
     for i in 0..split.recipients.len() {
         let part = if i == last {
             amount - assigned
         } else {
-            let product = amount_256.mul(&I256::from_i128(
-                env,
-                i128::from(split.shares.get_unchecked(i)),
-            ));
-            let part_i256 = product.div(&total);
-            match part_i256.to_i128() {
+            match math::split_part(amount, split.shares.get_unchecked(i)) {
                 Some(p) => p,
                 None => return,
             }
@@ -846,9 +827,8 @@ fn distribute_recursive(
         Err(Error::NothingToDistribute) => {
             if current_depth == 0 {
                 return Err(Error::NothingToDistribute);
-            } else {
-                return Ok(0);
             }
+            return Ok(0);
         }
         Err(e) => return Err(e),
     };

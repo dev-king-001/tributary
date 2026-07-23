@@ -1,9 +1,10 @@
 #![cfg(test)]
 extern crate alloc;
 
+extern crate std;
 use crate::{Recipient, Splitter, SplitterClient};
-use soroban_sdk::testutils::{Address as _, Ledger};
-use soroban_sdk::{token, vec, Address, Env, Vec};
+use soroban_sdk::testutils::Address as _;
+use soroban_sdk::{token, Address, Env, Vec};
 use std::fs::File;
 use std::io::Write;
 
@@ -49,12 +50,16 @@ fn benchmark_costs() {
         let (token_id, _) = fund_token(&env, &payer, 1_000_000_000);
         let split_id = build_32_recipient_split(&env, &client, &payer);
 
-        env.budget().reset_unlimited(); // reset for clean measurement
+        env.cost_estimate().budget().reset_unlimited(); // reset for clean measurement
         client.pay(&payer, &split_id, &token_id, &1_000_000);
-        
-        let cpu = env.budget().cpu_instruction_cost();
-        let mem = env.budget().memory_bytes_cost();
-        results.push_str(&alloc::format!("  \"pay_32\": {{ \"cpu\": {}, \"mem\": {} }},\n", cpu, mem));
+
+        let cpu = env.cost_estimate().budget().cpu_instruction_cost();
+        let mem = env.cost_estimate().budget().memory_bytes_cost();
+        results.push_str(&alloc::format!(
+            "  \"pay_32\": {{ \"cpu\": {}, \"mem\": {} }},\n",
+            cpu,
+            mem
+        ));
     }
 
     // 2. pay_many across 10 splits of 32 recipients
@@ -65,7 +70,7 @@ fn benchmark_costs() {
         let client = SplitterClient::new(&env, &contract_id);
         let payer = Address::generate(&env);
         let (token_id, _) = fund_token(&env, &payer, 1_000_000_000);
-        
+
         let mut ids = Vec::new(&env);
         let mut amounts = Vec::new(&env);
         for _ in 0..10 {
@@ -73,12 +78,16 @@ fn benchmark_costs() {
             amounts.push_back(1_000_000);
         }
 
-        env.budget().reset_unlimited();
+        env.cost_estimate().budget().reset_unlimited();
         client.pay_many(&payer, &ids, &amounts, &token_id);
-        
-        let cpu = env.budget().cpu_instruction_cost();
-        let mem = env.budget().memory_bytes_cost();
-        results.push_str(&alloc::format!("  \"pay_many_32x10\": {{ \"cpu\": {}, \"mem\": {} }},\n", cpu, mem));
+
+        let cpu = env.cost_estimate().budget().cpu_instruction_cost();
+        let mem = env.cost_estimate().budget().memory_bytes_cost();
+        results.push_str(&alloc::format!(
+            "  \"pay_many_32x10\": {{ \"cpu\": {}, \"mem\": {} }},\n",
+            cpu,
+            mem
+        ));
     }
 
     // 3. distribute of a large balance (32 recipients)
@@ -93,12 +102,16 @@ fn benchmark_costs() {
 
         client.deposit(&payer, &split_id, &token_id, &1_000_000_000);
 
-        env.budget().reset_unlimited();
+        env.cost_estimate().budget().reset_unlimited();
         client.distribute(&split_id, &token_id);
-        
-        let cpu = env.budget().cpu_instruction_cost();
-        let mem = env.budget().memory_bytes_cost();
-        results.push_str(&alloc::format!("  \"distribute_32\": {{ \"cpu\": {}, \"mem\": {} }},\n", cpu, mem));
+
+        let cpu = env.cost_estimate().budget().cpu_instruction_cost();
+        let mem = env.cost_estimate().budget().memory_bytes_cost();
+        results.push_str(&alloc::format!(
+            "  \"distribute_32\": {{ \"cpu\": {}, \"mem\": {} }},\n",
+            cpu,
+            mem
+        ));
     }
 
     // 4. Nested tree distribute_cascade at depth 5
@@ -109,7 +122,7 @@ fn benchmark_costs() {
         let client = SplitterClient::new(&env, &contract_id);
         let payer = Address::generate(&env);
         let (token_id, _) = fund_token(&env, &payer, 1_000_000_000);
-        
+
         let mut last_split = build_32_recipient_split(&env, &client, &payer);
         for _ in 1..5 {
             let mut recipients = Vec::new(&env);
@@ -128,12 +141,16 @@ fn benchmark_costs() {
         let root_split = last_split;
         client.deposit(&payer, &root_split, &token_id, &1_000_000_000);
 
-        env.budget().reset_unlimited();
+        env.cost_estimate().budget().reset_unlimited();
         client.distribute_cascade(&root_split, &token_id, &5);
-        
-        let cpu = env.budget().cpu_instruction_cost();
-        let mem = env.budget().memory_bytes_cost();
-        results.push_str(&alloc::format!("  \"distribute_cascade_depth_5\": {{ \"cpu\": {}, \"mem\": {} }}\n", cpu, mem));
+
+        let cpu = env.cost_estimate().budget().cpu_instruction_cost();
+        let mem = env.cost_estimate().budget().memory_bytes_cost();
+        results.push_str(&alloc::format!(
+            "  \"distribute_cascade_depth_5\": {{ \"cpu\": {}, \"mem\": {} }}\n",
+            cpu,
+            mem
+        ));
     }
 
     results.push_str("}\n");
